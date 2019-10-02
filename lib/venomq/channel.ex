@@ -19,4 +19,9 @@ defmodule Venomq.Channel do
     :gen_tcp.send(socket, data)
     {:noreply, state}
   end
+
+  def handle_info({:tcp_closed, _socket}, _state) do
+    Logger.info("#{inspect(self())} | connection closed.")
+    Process.exit(self(), :normal)
+  end
 end
