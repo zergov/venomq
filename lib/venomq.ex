@@ -1,18 +1,14 @@
 defmodule Venomq do
-  require Logger
+  use Application
 
-  def start_server do
-    {:ok, socket} = :gen_tcp.listen(4000, [:binary, packet: :line, active: true, reuseaddr: true])
-    Logger.info("Accepting connections on port 4000")
-    accept_connection(socket)
-  end
+  alias Venomq.ConnectionAcceptor
 
-  defp accept_connection(socket) do
-    # create a channel responsible to handle the new TCP connection
-    {:ok, client} = :gen_tcp.accept(socket)
-    {:ok, pid} = Venomq.Channel.start_link(client)
-    :ok = :gen_tcp.controlling_process(client, pid)
+  def start(_type, _args) do
+    children = [
+      Supervisor.child_spec({Task, fn -> ConnectionAcceptor.start_server end}, restart: :permanent)
+    ]
 
-    accept_connection(socket)
+    opts = [strategy: :one_for_one, name: Venomq.Supervisor]
+    Supervisor.start_link(children, opts)
   end
 end

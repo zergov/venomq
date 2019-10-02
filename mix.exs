@@ -13,7 +13,7 @@ defmodule Venomq.MixProject do
 
   def application do
     [
-      mod: {Venomq.Application, []},
+      mod: {Venomq, []},
       extra_applications: [:logger]
     ]
   end

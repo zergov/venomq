@@ -1,7 +1,7 @@
 defmodule Venomq.Channel do
-  require Logger
-
   use GenServer
+
+  require Logger
 
   def start_link(socket) do
     GenServer.start_link(__MODULE__, socket)
