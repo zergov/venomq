@@ -8,20 +8,29 @@ defmodule Venomq.Channel do
   end
 
   def init(socket) do
-    Logger.info("Spawned a channel with pid: #{inspect(self())}")
-    {:ok, %{ socket: socket }}
+    {:ok, %{socket: socket}, {:continue, :initialize}}
   end
 
   # TCP callbacks
 
+  def handle_continue(:initialize, state) do
+    Logger.info("Spawned a channel with pid: #{inspect(self())}")
+    write_socket(state.socket, "channel.open_ok")
+    {:noreply, state.socket}
+  end
+
   def handle_info({:tcp, socket, data}, state) do
     Logger.info("#{inspect(self())} | message received: #{String.trim(data)}")
-    :gen_tcp.send(socket, data)
+    write_socket(socket, data)
     {:noreply, state}
   end
 
   def handle_info({:tcp_closed, _socket}, _state) do
     Logger.info("#{inspect(self())} | connection closed.")
     Process.exit(self(), :normal)
+  end
+
+  defp write_socket(socket, data) do
+    :gen_tcp.send(socket, data)
   end
 end
