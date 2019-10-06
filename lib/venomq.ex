@@ -5,7 +5,8 @@ defmodule Venomq do
 
   def start(_type, _args) do
     children = [
-      Supervisor.child_spec({Task, fn -> ConnectionAcceptor.start_server end}, restart: :permanent)
+      Supervisor.child_spec({Task, fn -> ConnectionAcceptor.start_server end}, restart: :permanent),
+      Venomq.ChannelSupervisor,
     ]
 
     opts = [strategy: :one_for_one, name: Venomq.Supervisor]

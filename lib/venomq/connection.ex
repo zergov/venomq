@@ -2,6 +2,10 @@ defmodule Venomq.Connection do
   use GenServer
 
   import Venomq.AMQP.Data
+
+  alias Venomq.Channel
+  alias Venomq.ChannelSupervisor
+
   require Logger
 
   def start_link(socket) do
@@ -11,7 +15,6 @@ defmodule Venomq.Connection do
   def init(socket) do
     {:ok, %{
       socket: socket,
-      channel_count: 0,
       channels: %{},
     }}
   end
@@ -32,8 +35,6 @@ defmodule Venomq.Connection do
     method_payload = method_payload <> <<major, minor>> <> server_properties
     method_payload = method_payload <> encode_long_string(mechanism)
     method_payload = method_payload <> encode_long_string(locales)
-
-    # Frame
     frame = <<1, 0, 0, byte_size(method_payload)::32 >> <> method_payload <> << 0xce >>
 
     :gen_tcp.send(socket, frame)
@@ -45,10 +46,8 @@ defmodule Venomq.Connection do
       data
       |> String.split(<< 0xce >>)
       |> Enum.reverse |> tl |> Enum.reverse # last item in the list is an empty string
-      |> IO.inspect
       |> Enum.reduce(state, &handle_frame/2)
 
-    Logger.info(inspect(state))
     {:noreply, state}
   end
 
@@ -57,16 +56,21 @@ defmodule Venomq.Connection do
     Process.exit(self(), :normal)
   end
 
-  # Handle Method Class frame from 00 channel
+  # Handle a Method Class frame from 00 channel
   def handle_frame(<<1, 0::16, size::32, method_payload::binary-size(size)>>, state) do
     handle_method(method_payload, state)
   end
 
-  # Handle Method Class frame through an existing channel
-  def handle_frame(<<1, _channel_id::16, size::32, method_payload::binary-size(size)>>, state) do
-    # TODO: forward this method to a channel genserver
-    # Channel.call(channel_id, {:method, method_payload, state.socket})
-    handle_method(method_payload, state)
+  # Handle a Method Class frame through an existing channel
+  def handle_frame(<<1, channel_id::16, size::32, method_payload::binary-size(size)>>, state) do
+    Logger.info("handling frame for channel: #{channel_id}")
+    case Map.fetch(state.channels, channel_id) do
+      {:ok, channel_pid} ->
+        Channel.handle_method(channel_pid, method_payload)
+        state
+      :error ->
+        create_channel(channel_id, method_payload, state)
+    end
   end
 
   # connection.start_ok
@@ -100,27 +104,27 @@ defmodule Venomq.Connection do
 
   # connection.tune_ok
   defp handle_method(<<10::16, 31::16, arguments::binary >>, state) do
-    {channel_max, _, arguments} = decode_short_int(arguments)
-    {frame_max, _, arguments} = decode_long_int(arguments)
-    {heartbeat, _, _} = decode_short_int(arguments)
-    Logger.info("=========== connection.tune_ok ==============")
-    Logger.info("channel_max: #{channel_max}")
-    Logger.info("frame_max: #{frame_max}")
-    Logger.info("heartbeat: #{heartbeat}")
-    Logger.info("=============================================")
+    {_channel_max, _, arguments} = decode_short_int(arguments)
+    {_frame_max, _, arguments} = decode_long_int(arguments)
+    {_heartbeat, _, _} = decode_short_int(arguments)
+    # Logger.info("=========== connection.tune_ok ==============")
+    # Logger.info("channel_max: #{channel_max}")
+    # Logger.info("frame_max: #{frame_max}")
+    # Logger.info("heartbeat: #{heartbeat}")
+    # Logger.info("=============================================")
     state
   end
 
   # connection.open
   defp handle_method(<<10::16, 40::16, arguments::binary >>, state) do
     {virtual_host, _, arguments} = decode_short_string(arguments)
-    {reserved_1, _, arguments} = decode_short_string(arguments)
-    <<reserved_2, _arguments::binary>> = arguments
-    Logger.info("=========== connection.open ==============")
-    Logger.info("virtual_host: #{virtual_host}")
-    Logger.info("reserved_1: #{reserved_1}")
-    Logger.info("reserved_2: #{reserved_2}")
-    Logger.info("==========================================")
+    {_reserved_1, _, arguments} = decode_short_string(arguments)
+    <<_reserved_2, _arguments::binary>> = arguments
+    # Logger.info("=========== connection.open ==============")
+    # Logger.info("virtual_host: #{virtual_host}")
+    # Logger.info("reserved_1: #{reserved_1}")
+    # Logger.info("reserved_2: #{reserved_2}")
+    # Logger.info("==========================================")
 
     method_payload = <<10::16, 41::16>> <> encode_short_string(virtual_host)
     frame = <<1, 0, 0, byte_size(method_payload)::32 >> <> method_payload <> << 0xce >>
@@ -129,32 +133,18 @@ defmodule Venomq.Connection do
     state
   end
 
-  # channel.open
-  defp handle_method(<<20::16, 10::16, arguments::binary>>, state) do
-    {reserved_1, _, _} = decode_short_string(arguments)
-    Logger.info("=========== channel.open ==============")
-    Logger.info("reserved_1: #{reserved_1}")
-    Logger.info("==========================================")
+  # Create a new channel for this connection.
+  # Here, I assume we just received a channel.open method
+  defp create_channel(channel_id, <<20::16, 10::16, _::binary>>, state) do
+    {:ok, channel_pid} = ChannelSupervisor.start_child(state.socket, channel_id)
 
-    # Create a new channel, and answer in this channel
-    # TODO: Create a new Channel genserver
-    state = %{state | channel_count: state.channel_count + 1}
-    channel_id = state.channel_count
-    state = put_in(state[:channels][channel_id], nil)
+    state = put_in(state[:channels][channel_id], channel_pid)
 
-    method_payload = <<20::16, 11::16>> <> encode_long_string("")
+    # answer client with channel.open_ok
+    method_payload = <<20::16, 11::16>> <> encode_long_string("#{channel_id}")
     frame = <<1, channel_id::16, byte_size(method_payload)::32 >> <> method_payload <> << 0xce >>
 
     :gen_tcp.send(state.socket, frame)
-    state
-  end
-
-  defp handle_method(<<class_id::16, method_id::16, arguments::binary>>, state) do
-    Logger.info("=========================== unknown method ==================================")
-    Logger.info("class_id: #{class_id}")
-    Logger.info("method_id: #{method_id}")
-    Logger.info(inspect(arguments))
-    Logger.info("=============================================================================")
     state
   end
 end
