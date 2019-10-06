@@ -63,7 +63,6 @@ defmodule Venomq.Connection do
 
   # Handle a Method Class frame through an existing channel
   def handle_frame(<<1, channel_id::16, size::32, method_payload::binary-size(size)>>, state) do
-    Logger.info("handling frame for channel: #{channel_id}")
     case Map.fetch(state.channels, channel_id) do
       {:ok, channel_pid} ->
         Channel.handle_method(channel_pid, method_payload)
@@ -83,16 +82,16 @@ defmodule Venomq.Connection do
     # NOTE: Here we assume the mechanism is PLAIN, and that the response has
     # already been provided.
     #
-    # We also set very flexible and simple settings. For example:
-    #   - only 1 channel
+    # We also set very flexible and simple to implement settings. For example:
+    #   - unlimited channels
     #   - unlimited frame size
     #   - no heartbeat
     #
     # build and send connection.tune
     class_id = 10
     method_id = 30
-    channel_max = 5
-    frame_max = 131072
+    channel_max = 0
+    frame_max = 0
     heartbeat = 0
 
     method_payload = <<class_id::16, method_id::16, channel_max::16, frame_max::32, heartbeat::16>>
@@ -104,6 +103,8 @@ defmodule Venomq.Connection do
 
   # connection.tune_ok
   defp handle_method(<<10::16, 31::16, arguments::binary >>, state) do
+    # NOTE: Ignoring negotiated client settings for now.
+    #
     {_channel_max, _, arguments} = decode_short_int(arguments)
     {_frame_max, _, arguments} = decode_long_int(arguments)
     {_heartbeat, _, _} = decode_short_int(arguments)

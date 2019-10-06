@@ -10,8 +10,6 @@ defmodule Venomq.ConnectionAcceptor do
   end
 
   defp accept_connection(socket) do
-    # currently we are not supporting channel multiplexing, so we create a single channel per
-    # TCP connection.
     {:ok, client} = :gen_tcp.accept(socket)
     {:ok, pid} = Venomq.Connection.start_link(client)
     :ok = :gen_tcp.controlling_process(client, pid)
