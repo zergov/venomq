@@ -19,9 +19,10 @@ defmodule Venomq.Channel do
     {:noreply, state.socket}
   end
 
-  def handle_info({:tcp, socket, data}, state) do
-    Logger.info("#{inspect(self())} | message received: #{String.trim(data)}")
-    write_socket(socket, data)
+  def handle_info({:tcp, _socket, data}, state) do
+    Logger.info(inspect(to_string(data)))
+    # :gen_tcp.send(socket, data)
+    # :gen_tcp.send(socket, )
     {:noreply, state}
   end
 
