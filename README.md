@@ -10,7 +10,7 @@ From the AMQP website:
 > The Advanced Message Queuing Protocol (AMQP) is an open standard for passing business messages between applications or organizations.  It connects systems, feeds business processes with the information they need and reliably transmits onward the instructions that achieve their goals.
 
 I thought it was cool, so I started reading the AMQP spec.
-I then decided I would write an AMQP message broker from scratch, as an exercise to really understand AMQP compliant
+I then decided I would write an AMQP message broker from scratch, as an exercise to really understand how AMQP compliant
 software works.
 
 ## starting the broker
