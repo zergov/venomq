@@ -1,4 +1,11 @@
 defmodule Venomq.Connection do
+
+  @moduledoc"""
+  Process that handles a connection between a client and the broker.
+
+  This process handles connection initialization, parse incoming TCP packet and
+  forward AMQP frames to channels.
+  """
   use GenServer
 
   import Venomq.Transport.Data

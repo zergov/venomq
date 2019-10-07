@@ -1,4 +1,11 @@
 defmodule Venomq.Channel do
+
+  @moduledoc"""
+  Process that handle a stream of communications between two AMQP peers.
+
+  Channels are multiplexed so that a single network connection can carry multiple channels.
+  Channels are independent of each other and can perform different functions simultaneously
+  """
   use GenServer
 
   import Venomq.Transport.Data
