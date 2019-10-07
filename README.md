@@ -1,4 +1,5 @@
 # Venomq
+Zero dependency AMQP message broker
 
 ## Introduction
 I am currently following a course about distributed systems. One of the things I find
@@ -13,7 +14,9 @@ I then decided I would write an AMQP message broker from scratch, as an exercise
 software works.
 
 ## starting the broker
-Just start an iex session with the mix project:
+You will need [elixir](https://elixir-lang.org/install.html) installed on your machine.
+
+Then, just start an iex session with the mix project:
 ```
 λ iex -S mix
 
