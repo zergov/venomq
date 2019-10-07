@@ -1,7 +1,7 @@
-defmodule AMQPDataTest do
+defmodule Transport.DataTest do
   use ExUnit.Case, async: true
 
-  alias Venomq.AMQP.Data
+  alias Venomq.Transport.Data
 
   test "decode_table can decode %{a: true} field table" do
     bytes = <<4::32, 1, "a", "t", 1>>

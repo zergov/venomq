@@ -1,4 +1,4 @@
-defmodule Venomq.AMQP.Data do
+defmodule Venomq.Transport.Data do
   require Logger
 
   def encode_long_string(string) do
