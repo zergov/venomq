@@ -2,7 +2,7 @@
 Zero dependency AMQP message broker
 
 ## Introduction
-I am currently following a course about distributed systems. One of the things I find
+I am currently following a course on distributed systems. One of the things I find
 interesting is how they communicate and exchange informations over the network.
 Eventually I learned about AMQP.
 
