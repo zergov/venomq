@@ -46,6 +46,7 @@ defmodule Venomq.Connection do
       data
       |> String.split(<< 0xce >>)
       |> Enum.reverse |> tl |> Enum.reverse # last item in the list is an empty string
+      |> IO.inspect
       |> Enum.reduce(state, &handle_frame/2)
 
     {:noreply, state}
@@ -62,13 +63,13 @@ defmodule Venomq.Connection do
   end
 
   # Handle a Method Class frame through an existing channel
-  def handle_frame(<<1, channel_id::16, size::32, method_payload::binary-size(size)>>, state) do
+  def handle_frame(<<type, channel_id::16, size::32, payload::binary-size(size)>> = frame, state) do
     case Map.fetch(state.channels, channel_id) do
       {:ok, channel_pid} ->
-        Channel.handle_method(channel_pid, method_payload)
+        Channel.handle_frame(channel_pid, frame)
         state
       :error ->
-        create_channel(channel_id, method_payload, state)
+        handle_channel_open(channel_id, payload, state)
     end
   end
 
@@ -134,9 +135,8 @@ defmodule Venomq.Connection do
     state
   end
 
-  # Create a new channel for this connection.
-  # Here, I assume we just received a channel.open method
-  defp create_channel(channel_id, <<20::16, 10::16, _::binary>>, state) do
+  # Attempt to handle channel.open method
+  defp handle_channel_open(channel_id, <<20::16, 10::16, _::binary>>, state) do
     {:ok, channel_pid} = ChannelSupervisor.start_child(state.socket, channel_id)
 
     state = put_in(state[:channels][channel_id], channel_pid)

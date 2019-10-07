@@ -9,8 +9,8 @@ defmodule Venomq.Channel do
     GenServer.start_link(__MODULE__, init_args)
   end
 
-  def handle_method(pid, method_payload) do
-    GenServer.cast(pid, {:handle_method, method_payload})
+  def handle_frame(pid, frame) do
+    GenServer.cast(pid, {:handle_frame, frame})
   end
 
   # genserver callbacks
@@ -23,13 +23,30 @@ defmodule Venomq.Channel do
     }}
   end
 
-  def handle_cast({:handle_method, method_payload}, state) do
-    state = do_handle_method(method_payload, state)
+  def handle_cast({:handle_frame, frame}, state) do
+    state = do_handle_frame(frame, state)
     {:noreply, state}
   end
 
+  # handle method frame
+  defp do_handle_frame(<<1, _channel_id::16, size::32, payload::binary-size(size)>>, state) do
+    handle_method(payload, state)
+  end
+
+  # handle content header frame
+  defp do_handle_frame(<<2, _channel_id::16, size::32, payload::binary-size(size)>>, state) do
+    Logger.info("parsing content header frame")
+    # handle_content_header(payload, state)
+  end
+
+  # handle content body frame
+  defp do_handle_frame(<<3, _channel_id::16, size::32, payload::binary-size(size)>>, state) do
+    Logger.info("parsing content body frame")
+    # handle_content_header(payload, state)
+  end
+
   # queue.declare
-  defp do_handle_method(<<50::16, 10::16, arguments::binary>>, state) do
+  defp handle_method(<<50::16, 10::16, arguments::binary>>, state) do
     Logger.info("parsing Queue.declare method")
     {reserved_1, _, arguments} = decode_short_int(arguments)
     {queue_name, _, arguments} = decode_short_string(arguments)
@@ -58,7 +75,7 @@ defmodule Venomq.Channel do
   end
 
   # unknown method
-  defp do_handle_method(<<class_id::16, method_id::16, arguments::binary>>, state) do
+  defp handle_method(<<class_id::16, method_id::16, arguments::binary>>, state) do
     Logger.info("========= channel_id: #{state.channel_id} | unknown method ===================")
     Logger.info("class_id: #{class_id}")
     Logger.info("method_id: #{method_id}")
