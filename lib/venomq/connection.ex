@@ -1,5 +1,4 @@
 defmodule Venomq.Connection do
-
   @moduledoc"""
   Process that handles a connection between a client and the broker.
 

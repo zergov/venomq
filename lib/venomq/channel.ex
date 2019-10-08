@@ -1,5 +1,4 @@
 defmodule Venomq.Channel do
-
   @moduledoc"""
   Process that handle a stream of communications between two AMQP peers.
 
