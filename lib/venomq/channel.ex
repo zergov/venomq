@@ -78,8 +78,6 @@ defmodule Venomq.Channel do
       # TODO: execute method
       Logger.info("Executing method:")
       IO.inspect(state.content_method)
-
-      Logger.info("With content body:")
       IO.inspect(content_body)
 
       # reset state
