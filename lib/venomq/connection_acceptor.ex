@@ -1,10 +1,17 @@
 defmodule Venomq.ConnectionAcceptor do
+  alias Venomq.ExchangeSupervisor
+
   require Logger
 
   @default_port 5672
 
   def start_server do
     opts = [:binary, packet: :raw, active: true, reuseaddr: true]
+
+    # Start default exchanges
+    ExchangeSupervisor.start_exchange("")
+    ExchangeSupervisor.start_exchange("amq.direct")
+
     {:ok, socket} = :gen_tcp.listen(@default_port, opts)
     Logger.info("Accepting connections on port #{@default_port}")
     accept_connection(socket)

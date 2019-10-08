@@ -5,8 +5,10 @@ defmodule Venomq do
 
   def start(_type, _args) do
     children = [
-      Supervisor.child_spec({Task, fn -> ConnectionAcceptor.start_server end}, restart: :permanent),
       Venomq.ChannelSupervisor,
+      Venomq.ExchangeSupervisor,
+      {Registry, [keys: :unique, name: Registry.Exchange]},
+      Supervisor.child_spec({Task, fn -> ConnectionAcceptor.start_server end}, restart: :permanent),
     ]
 
     opts = [strategy: :one_for_one, name: Venomq.Supervisor]

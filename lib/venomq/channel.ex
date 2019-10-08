@@ -10,6 +10,8 @@ defmodule Venomq.Channel do
   import Venomq.Transport.Data
 
   alias Venomq.Transport.Frame
+  alias Venomq.ExchangeSupervisor
+  alias Venomq.ExchangeDirect
 
   require Logger
 
@@ -73,17 +75,25 @@ defmodule Venomq.Channel do
     content_body = state.content_body <> payload
     body_size = state.body_size + size
 
+    # If there is no more content-body frame to accumulate, execute the method with
+    # the constructed body.
     if body_size == state.content_header.body_size do
-      # TODO: execute method
-      Logger.info("Executing method:")
-      IO.inspect(state.content_method)
-      IO.inspect(content_body)
-
-      # reset state
+      state = execute_method(state.content_method, content_body, state)
       %{state | content_method: %{}, content_header: %{}, content_body: <<>>, body_size: 0}
     else
       %{state | content_body: content_body, body_size: body_size}
     end
+  end
+
+  defp execute_method(%{class: :basic, method: :publish, payload: payload}, body, state) do
+    case ExchangeSupervisor.lookup(payload.exchange_name) do
+      nil ->
+        Logger.info("cannot find exchange: #{payload.exchange_name}")
+      exchange ->
+        ExchangeDirect.publish(exchange, %{routing_key: payload.routing_key, body: body})
+    end
+
+    state
   end
 
   #Generate a method frame for this Channel.
