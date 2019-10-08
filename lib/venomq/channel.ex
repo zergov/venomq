@@ -39,11 +39,11 @@ defmodule Venomq.Channel do
 
   # handle method frame
   defp do_handle_frame(%Frame{type: :method, payload: payload}, state), do: handle_method(payload, state)
+  defp do_handle_frame(%Frame{type: :content_header, payload: payload}, state), do: handle_header(payload, state)
+  defp do_handle_frame(%Frame{type: :content_body, payload: payload}, state), do: Logger.info("handle content body frame")
 
   # queue.declare
   defp handle_method(%{class: :queue, method: :declare, payload: payload}, state) do
-    Logger.info(inspect(payload))
-
     #TODO: create the actual queue process
     #
     # answer client with queue.declare_ok
@@ -53,6 +53,19 @@ defmodule Venomq.Channel do
     method_payload = method_payload <> << message_count::32, consumer_count::32 >>
 
     :gen_tcp.send(state.socket, create_method_frame(method_payload, state))
+    state
+  end
+
+  defp handle_method(%{class: :basic, method: :publish, payload: payload}, state) do
+    #TODO: create a buffer for incomming content-body containing the message
+    Logger.info("Start FSM for incomming message")
+    Logger.info(inspect(payload))
+    state
+  end
+
+  defp handle_header(payload, state) do
+    Logger.info("parsing content header:")
+    Logger.info(inspect(payload))
     state
   end
 

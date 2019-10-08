@@ -1,7 +1,9 @@
 defmodule Venomq.Transport.Method do
 
   import Venomq.Transport.Data
+  require Logger
 
+  # connection.start_ok
   def parse_method(<<10::16, 11::16, arguments::binary>>) do
     {client_properties, _, arguments} = decode_table(arguments)
     {mechanism, _, arguments} = decode_short_string(arguments)
@@ -19,6 +21,7 @@ defmodule Venomq.Transport.Method do
     }
   end
 
+  # connection.tune_ok
   def parse_method(<<10::16, 31::16, arguments::binary>>) do
     {channel_max, _, arguments} = decode_short_int(arguments)
     {frame_max, _, arguments} = decode_long_int(arguments)
@@ -34,6 +37,7 @@ defmodule Venomq.Transport.Method do
     }
   end
 
+  # connection.open
   def parse_method(<<10::16, 40::16, arguments::binary>>) do
     {virtual_host, _, arguments} = decode_short_string(arguments)
     {reserved_1, _, arguments} = decode_short_string(arguments)
@@ -49,6 +53,7 @@ defmodule Venomq.Transport.Method do
     }
   end
 
+  # channel.open
   def parse_method(<<20::16, 10::16, _::binary>>) do
     %{
       class: :channel,
@@ -57,6 +62,7 @@ defmodule Venomq.Transport.Method do
     }
   end
 
+  # queue.declare
   def parse_method(<<50::16, 10::16, arguments::binary>>) do
     {reserved_1, _, arguments} = decode_short_int(arguments)
     {queue_name, _, arguments} = decode_short_string(arguments)
@@ -72,6 +78,26 @@ defmodule Venomq.Transport.Method do
         exclusive: exclusive,
         auto_delete: auto_delete,
         no_wait: no_wait,
+      }
+    }
+  end
+
+  # basic.publish
+  def parse_method(<<60::16, 40::16, arguments::binary>>) do
+    {reserved_1, _, arguments} = decode_short_int(arguments)
+    {exchange_name, _, arguments} = decode_short_string(arguments)
+    {routing_key, _, arguments} = decode_short_string(arguments)
+    mandatory = String.slice(arguments, 0, 1)
+    immediate = String.slice(arguments, 1, 2)
+    %{
+      class: :basic,
+      method: :publish,
+      payload: %{
+        reserved_1: reserved_1,
+        exchange_name: exchange_name,
+        routing_key: routing_key,
+        mandatory: mandatory != "" && mandatory != <<0>>,
+        immediate: immediate != "" && immediate != <<0>>,
       }
     }
   end
