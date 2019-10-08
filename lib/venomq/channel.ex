@@ -39,8 +39,8 @@ defmodule Venomq.Channel do
 
   # handle method frame
   defp do_handle_frame(%Frame{type: :method, payload: payload}, state), do: handle_method(payload, state)
-  defp do_handle_frame(%Frame{type: :content_header, payload: payload}, state), do: handle_header(payload, state)
-  defp do_handle_frame(%Frame{type: :content_body, payload: payload}, state), do: Logger.info("handle content body frame")
+  defp do_handle_frame(%Frame{type: :content_header, payload: payload}, state), do: handle_content_header(payload, state)
+  defp do_handle_frame(%Frame{type: :content_body, payload: payload}, state), do: handle_content_body(payload, state)
 
   # queue.declare
   defp handle_method(%{class: :queue, method: :declare, payload: payload}, state) do
@@ -63,8 +63,14 @@ defmodule Venomq.Channel do
     state
   end
 
-  defp handle_header(payload, state) do
-    Logger.info("parsing content header:")
+  defp handle_content_header(payload, state) do
+    Logger.info("-- parsing content header --")
+    Logger.info(inspect(payload))
+    state
+  end
+
+  defp handle_content_body(payload, state) do
+    Logger.info(" -- parsing content body --")
     Logger.info(inspect(payload))
     state
   end
