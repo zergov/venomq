@@ -2,16 +2,8 @@
 Zero dependency AMQP message broker
 
 ## Introduction
-I am currently following a course on distributed systems. One of the things I find
-interesting is how they communicate and exchange informations over the network.
-Eventually I learned about AMQP.
-
-From the AMQP website:
-> The Advanced Message Queuing Protocol (AMQP) is an open standard for passing business messages between applications or organizations.  It connects systems, feeds business processes with the information they need and reliably transmits onward the instructions that achieve their goals.
-
-I thought it was cool, so I started reading the AMQP spec.
-I then decided I would write an AMQP message broker from scratch, as an exercise to really understand how AMQP compliant
-software works.
+I wanted to play with elixir and also learn a bit more about how the transport layer works. I thought building an AMQP broker from scatch would
+be fun and a cool learning experience, so here it is :).
 
 ## starting the broker
 You will need [elixir](https://elixir-lang.org/install.html) installed on your machine.
@@ -31,6 +23,9 @@ iex(1)>
 At this point, the broker is running and is accepting connections from AMQP clients on
 port 5672 (the default AMQP port)
 
-## Test the broker
-Right now, I am testing the broker with a script that uses the python client [pika](https://github.com/pika/pika).
-You can find the script in the `/examples` folder.
+## Playing with the broker
+My goal is to follow the [rabbitmq tutorials](https://www.rabbitmq.com/getstarted.html), and implement as much feature as possible
+so that the tutorials can be played on this broker.
+
+I am using the python version of the tutorials, using the amqp [pika](https://github.com/pika/pika) .
+You can find the tutorial scripts in the `/examples` folder.
