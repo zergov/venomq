@@ -39,6 +39,7 @@ defmodule Venomq.Connection do
     mechanism = "PLAIN"
     locales = "en_US"
 
+    # respond with Connection.start
     method_payload = <<class_id::16, method_id::16>>
     method_payload = method_payload <> <<major, minor>> <> server_properties
     method_payload = method_payload <> encode_long_string(mechanism)
@@ -46,18 +47,19 @@ defmodule Venomq.Connection do
     frame = <<1, 0, 0, byte_size(method_payload)::32 >> <> method_payload <> << 0xce >>
 
     :gen_tcp.send(socket, frame)
+
+    # Changing packet setting to: line", with 0xce delimiter
+    :inet.setopts(socket, [{:packet, :line}, {:line_delimiter, 0xce}])
     {:noreply, state}
   end
 
   def handle_info({:tcp, _socket, data}, state) do
-    {
-      :noreply,
-      Frame.parse_frames(data) |> Enum.reduce(state, &handle_frame/2)
-    }
+    frame = Frame.parse_frame(data)
+    {:noreply, handle_frame(frame, state)}
   end
 
   def handle_info({:tcp_closed, _socket}, _state) do
-    Logger.info("#{inspect(self())} | connection closed.")
+    Logger.info("connection #{inspect(self())} | connection closed.")
     Process.exit(self(), :normal)
   end
 
@@ -86,7 +88,7 @@ defmodule Venomq.Connection do
       {:ok, channel_pid} ->
         Channel.handle_frame(channel_pid, frame)
       :error ->
-        Logger.info("cannot find channel: #{channel_id}")
+        Logger.info("connection #{inspect(self())} | cannot find channel: #{channel_id}")
     end
     state
   end
@@ -113,8 +115,11 @@ defmodule Venomq.Connection do
     state
   end
 
-  defp handle_method(%{class: :connection, method: :tune_ok}, state) do
-    # NOTE: Ignoring negotiated client settings for now.
+  defp handle_method(%{class: :connection, method: :tune_ok, payload: payload}, state) do
+    # set the socket buffer to the negotiated frame size with the client
+    Logger.info("connection #{inspect(self())} | Setting socket buffer size to: #{payload.frame_max}")
+    :inet.setopts(state.socket, [{:buffer, payload.frame_max}])
+
     state
   end
 

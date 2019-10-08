@@ -8,14 +8,7 @@ defmodule Venomq.Transport.Frame do
             size: 0,
             payload: nil
 
-  def parse_frames(packet) do
-    packet
-    |> String.split(<< 0xce >>, trim: true)
-    |> Enum.map(&parse_frame/1)
-    |> IO.inspect
-  end
-
-  defp parse_frame(<<1, channel_id::16, size::32, payload::binary-size(size)>>) do
+  def parse_frame(<<1, channel_id::16, size::32, payload::binary-size(size), 0xce>>) do
     %Frame{
       type: :method,
       channel_id: channel_id,
@@ -24,7 +17,7 @@ defmodule Venomq.Transport.Frame do
     }
   end
 
-  defp parse_frame(<<2, channel_id::16, size::32, payload::binary-size(size)>>) do
+  def parse_frame(<<2, channel_id::16, size::32, payload::binary-size(size), 0xce>>) do
     <<class_id::16, weight::16, body_size::64, property_flag::16, remainder::binary>> = payload
     %Frame{
       type: :content_header,
@@ -40,7 +33,7 @@ defmodule Venomq.Transport.Frame do
     }
   end
 
-  defp parse_frame(<<3, channel_id::16, size::32, payload::binary-size(size)>>) do
+  def parse_frame(<<3, channel_id::16, size::32, payload::binary-size(size), 0xce>>) do
     %Frame{
       type: :content_body,
       channel_id: channel_id,

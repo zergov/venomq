@@ -4,7 +4,8 @@ defmodule Venomq.ConnectionAcceptor do
   @default_port 5672
 
   def start_server do
-    {:ok, socket} = :gen_tcp.listen(@default_port, [:binary, packet: :raw, active: true, reuseaddr: true])
+    opts = [:binary, packet: :raw, active: true, reuseaddr: true]
+    {:ok, socket} = :gen_tcp.listen(@default_port, opts)
     Logger.info("Accepting connections on port #{@default_port}")
     accept_connection(socket)
   end

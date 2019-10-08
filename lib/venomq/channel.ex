@@ -25,22 +25,28 @@ defmodule Venomq.Channel do
   # genserver callbacks
 
   def init(socket: socket, channel_id: channel_id) do
-    Logger.info("Created channel: #{channel_id} at #{inspect(self())}")
     {:ok, %{
       socket: socket,
       channel_id: channel_id,
+
+      # content-body frame parsing
+      content_method: %{},
+      content_header: %{},
+      content_body: <<>>,
+      body_size: 0,
     }}
   end
 
   def handle_cast({:handle_frame, frame}, state) do
-    state = do_handle_frame(frame, state)
-    {:noreply, state}
+    {:noreply, do_handle_frame(frame, state)}
   end
 
   # handle method frame
   defp do_handle_frame(%Frame{type: :method, payload: payload}, state), do: handle_method(payload, state)
   defp do_handle_frame(%Frame{type: :content_header, payload: payload}, state), do: handle_content_header(payload, state)
-  defp do_handle_frame(%Frame{type: :content_body, payload: payload}, state), do: handle_content_body(payload, state)
+  defp do_handle_frame(%Frame{type: :content_body, size: size, payload: payload}, state) do
+    handle_content_body(payload, size, state)
+  end
 
   # queue.declare
   defp handle_method(%{class: :queue, method: :declare, payload: payload}, state) do
@@ -56,23 +62,31 @@ defmodule Venomq.Channel do
     state
   end
 
-  defp handle_method(%{class: :basic, method: :publish, payload: payload}, state) do
-    #TODO: create a buffer for incomming content-body containing the message
-    Logger.info("Start FSM for incomming message")
-    Logger.info(inspect(payload))
-    state
+  defp handle_method(%{class: :basic, method: :publish, payload: payload} = method, state) do
+    %{state | content_method: method}
   end
 
   defp handle_content_header(payload, state) do
-    Logger.info("-- parsing content header --")
-    Logger.info(inspect(payload))
-    state
+    %{state | content_header: payload}
   end
 
-  defp handle_content_body(payload, state) do
-    Logger.info(" -- parsing content body --")
-    Logger.info(inspect(payload))
-    state
+  defp handle_content_body(payload, size, state) do
+    content_body = state.content_body <> payload
+    body_size = state.body_size + size
+
+    if body_size == state.content_header.body_size do
+      # TODO: execute method
+      Logger.info("Executing method:")
+      IO.inspect(state.content_method)
+
+      Logger.info("With content body:")
+      IO.inspect(content_body)
+
+      # reset state
+      %{state | content_method: %{}, content_header: %{}, content_body: <<>>, body_size: 0}
+    else
+      %{state | content_body: content_body, body_size: body_size}
+    end
   end
 
   #Generate a method frame for this Channel.
