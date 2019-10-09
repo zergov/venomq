@@ -7,7 +7,9 @@ defmodule Venomq do
     children = [
       Venomq.ChannelSupervisor,
       Venomq.ExchangeSupervisor,
+      Venomq.QueueSupervisor,
       {Registry, [keys: :unique, name: Registry.Exchange]},
+      {Registry, [keys: :unique, name: Registry.Queue]},
       Supervisor.child_spec({Task, fn -> ConnectionAcceptor.start_server end}, restart: :permanent),
     ]
 

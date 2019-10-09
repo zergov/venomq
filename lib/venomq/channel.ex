@@ -12,6 +12,8 @@ defmodule Venomq.Channel do
   alias Venomq.Transport.Frame
   alias Venomq.ExchangeSupervisor
   alias Venomq.ExchangeDirect
+  alias Venomq.Queue
+  alias Venomq.QueueSupervisor
 
   require Logger
 
@@ -42,7 +44,7 @@ defmodule Venomq.Channel do
     {:noreply, do_handle_frame(frame, state)}
   end
 
-  # handle method frame
+  # handle frames
   defp do_handle_frame(%Frame{type: :method, payload: payload}, state), do: handle_method(payload, state)
   defp do_handle_frame(%Frame{type: :content_header, payload: payload}, state), do: handle_content_header(payload, state)
   defp do_handle_frame(%Frame{type: :content_body, size: size, payload: payload}, state) do
@@ -51,8 +53,8 @@ defmodule Venomq.Channel do
 
   # queue.declare
   defp handle_method(%{class: :queue, method: :declare, payload: payload}, state) do
-    #TODO: create the actual queue process
-    #
+    {:ok, pid} = QueueSupervisor.declare_queue(payload)
+
     # answer client with queue.declare_ok
     method_payload = <<50::16, 11::16>> <> encode_short_string(payload.queue_name)
     message_count = 0

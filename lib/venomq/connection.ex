@@ -59,6 +59,7 @@ defmodule Venomq.Connection do
 
   def handle_info({:tcp_closed, _socket}, _state) do
     Logger.info("connection #{inspect(self())} | connection closed.")
+    #TODO: kill channels of this connection
     Process.exit(self(), :normal)
   end
 
@@ -115,7 +116,6 @@ defmodule Venomq.Connection do
   end
 
   defp handle_method(%{class: :connection, method: :tune_ok, payload: payload}, state) do
-    # set the socket buffer to the negotiated frame size with the client
     Logger.info("connection #{inspect(self())} | Setting socket buffer size to: #{payload.frame_max}")
     :inet.setopts(state.socket, [{:buffer, payload.frame_max}])
 

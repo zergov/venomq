@@ -18,7 +18,7 @@ defmodule Venomq.ExchangeDirect do
   end
 
   def handle_cast({:publish, routing_key, body}, state) do
-    Logger.info("#{state.exchange_name} | publishing #{body} with routing key: #{routing_key}")
+    Logger.info("exchange: \"#{state.exchange_name}\" | publishing #{body} with routing key: #{routing_key}")
     # TODO: route message to appropriate queues
     {:noreply, state}
   end
