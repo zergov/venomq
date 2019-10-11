@@ -82,6 +82,29 @@ defmodule Venomq.Transport.Method do
     }
   end
 
+  # basic.consume
+  def parse_method(<<60::16, 20::16, data::binary>>) do
+    <<reserved_1::16, data::binary>> = data
+    {queue, _, data} = decode_short_string(data)
+    {consumer_tag, _, data} = decode_short_string(data)
+    <<no_local, no_ack, exclusive, no_wait, data::binary>> = data
+    {arguments, _, _} = decode_table(data)
+    %{
+      class: :basic,
+      method: :consume,
+      payload: %{
+        reserved_1: reserved_1,
+        queue: queue,
+        consumer_tag: consumer_tag,
+        no_local: no_local,
+        no_ack: no_ack,
+        exclusive: exclusive,
+        no_wait: no_wait,
+        arguments: arguments,
+      }
+    }
+  end
+
   # basic.publish
   def parse_method(<<60::16, 40::16, arguments::binary>>) do
     {reserved_1, _, arguments} = decode_short_int(arguments)

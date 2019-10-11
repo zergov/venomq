@@ -17,6 +17,7 @@ defmodule Venomq.Transport.Data do
       - length is the length of the decoding value
       - encoded is the remaining bytes not decoded
   """
+  def decode_table(encoded) when byte_size(encoded) == 1, do: {%{}, 0, <<>>}
   def decode_table(encoded) do
     <<table_size::32, encoded::binary>> = encoded
     decode_table(%{}, table_size, 0, encoded)

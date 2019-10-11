@@ -65,6 +65,11 @@ defmodule Venomq.Channel do
     state
   end
 
+  defp handle_method(%{class: :basic, method: :consume, payload: payload} = method_payload, state) do
+    Logger.info("received basic consume")
+    IO.inspect(method_payload)
+  end
+
   defp handle_method(%{class: :basic, method: :publish} = method, state), do: %{state | content_method: method}
   defp handle_content_header(payload, state), do: %{state | content_header: payload}
   defp handle_content_body(payload, size, state) do
