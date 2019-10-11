@@ -56,11 +56,12 @@ defmodule Venomq.Channel do
     {:ok, _pid} = QueueSupervisor.declare_queue(payload)
 
     # answer client with queue.declare_ok
-    # TODO: no-wait if it exists
+    # TODO: this should be contained inside Frame or Method module
     method_payload = <<50::16, 11::16>> <> encode_short_string(payload.queue_name)
     message_count = 0
     consumer_count = 0
     method_payload = method_payload <> << message_count::32, consumer_count::32 >>
+    # TODO: no-wait flag if it exists
 
     :gen_tcp.send(state.socket, Frame.create_method_frame(method_payload, state.channel_id))
     state
@@ -102,7 +103,6 @@ defmodule Venomq.Channel do
       pid ->
         :ok = ExchangeDirect.publish(pid, %{routing_key: routing_key, body: body})
     end
-
     state
   end
 end
