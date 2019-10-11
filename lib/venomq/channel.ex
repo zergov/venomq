@@ -10,10 +10,9 @@ defmodule Venomq.Channel do
   import Venomq.Transport.Data
 
   alias Venomq.Transport.Frame
-  alias Venomq.ExchangeSupervisor
-  alias Venomq.ExchangeDirect
-  alias Venomq.Queue
   alias Venomq.QueueSupervisor
+  alias Venomq.ExchangeDirect
+  alias Venomq.ExchangeSupervisor
 
   require Logger
 
@@ -53,26 +52,21 @@ defmodule Venomq.Channel do
 
   # queue.declare
   defp handle_method(%{class: :queue, method: :declare, payload: payload}, state) do
-    {:ok, pid} = QueueSupervisor.declare_queue(payload)
+    {:ok, _pid} = QueueSupervisor.declare_queue(payload)
 
     # answer client with queue.declare_ok
+    # TODO: no-wait if it exists
     method_payload = <<50::16, 11::16>> <> encode_short_string(payload.queue_name)
     message_count = 0
     consumer_count = 0
     method_payload = method_payload <> << message_count::32, consumer_count::32 >>
 
-    :gen_tcp.send(state.socket, create_method_frame(method_payload, state))
+    :gen_tcp.send(state.socket, Frame.create_method_frame(method_payload, state.channel_id))
     state
   end
 
-  defp handle_method(%{class: :basic, method: :publish, payload: payload} = method, state) do
-    %{state | content_method: method}
-  end
-
-  defp handle_content_header(payload, state) do
-    %{state | content_header: payload}
-  end
-
+  defp handle_method(%{class: :basic, method: :publish} = method, state), do: %{state | content_method: method}
+  defp handle_content_header(payload, state), do: %{state | content_header: payload}
   defp handle_content_body(payload, size, state) do
     content_body = state.content_body <> payload
     body_size = state.body_size + size
@@ -88,18 +82,15 @@ defmodule Venomq.Channel do
   end
 
   defp execute_method(%{class: :basic, method: :publish, payload: payload}, body, state) do
-    case ExchangeSupervisor.lookup(payload.exchange_name) do
+    %{exchange_name: exchange_name, routing_key: routing_key} = payload
+    case ExchangeSupervisor.lookup(exchange_name) do
       nil ->
-        Logger.info("cannot find exchange: #{payload.exchange_name}")
-      exchange ->
-        ExchangeDirect.publish(exchange, %{routing_key: payload.routing_key, body: body})
+        Logger.info("cannot find exchange: #{exchange_name}")
+        :error
+      pid ->
+        :ok = ExchangeDirect.publish(pid, %{routing_key: routing_key, body: body})
     end
 
     state
-  end
-
-  #Generate a method frame for this Channel.
-  defp create_method_frame(method_payload, %{ channel_id: channel_id }) do
-    <<1, channel_id::16, byte_size(method_payload)::32 >> <> method_payload <> << 0xce >>
   end
 end

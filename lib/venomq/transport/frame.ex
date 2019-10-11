@@ -42,5 +42,9 @@ defmodule Venomq.Transport.Frame do
     }
   end
 
+  def create_method_frame(method_payload, channel_id) do
+    <<1, channel_id::16, byte_size(method_payload)::32 >> <> method_payload <> << 0xce >>
+  end
+
   defp class_atom(60), do: :basic
 end
