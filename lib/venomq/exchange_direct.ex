@@ -1,6 +1,8 @@
 defmodule Venomq.ExchangeDirect do
   use GenServer
 
+  alias Venomq.Queue
+
   require Logger
 
   def start_link(exchange_name: exchange_name, name: name) do
@@ -8,18 +10,40 @@ defmodule Venomq.ExchangeDirect do
   end
 
   def publish(pid, %{routing_key: routing_key, body: body}) do
-    GenServer.cast(pid, {:publish, routing_key, body})
+    GenServer.call(pid, {:publish, routing_key, body})
+  end
+
+  def bind(pid, queue_pid, routing_key) do
+    GenServer.call(pid, {:bind, queue_pid, routing_key})
   end
 
   # genserver callbacks
 
   def init(exchange_name) do
-    {:ok, %{exchange_name: exchange_name}}
+    {:ok,
+      %{
+        exchange_name: exchange_name,
+        queues: %{},
+      }
+    }
   end
 
-  def handle_cast({:publish, routing_key, body}, state) do
+  def handle_call({:publish, routing_key, body}, _from, %{queues: queues} = state) do
     Logger.info("exchange: \"#{state.exchange_name}\" | publishing #{body} with routing key: #{routing_key}")
-    # TODO: route message to appropriate queues
-    {:noreply, state}
+    queues
+    |> Map.get(routing_key, MapSet.new)
+    |> Enum.each(&Queue.enqueue(&1, body))
+
+    {:reply, :ok, state}
+  end
+
+  def handle_call({:bind, queue_pid, routing_key}, _from, state) do
+    Logger.info("exchange: \"#{state.exchange_name}\" | queue #{inspect(queue_pid)} bound")
+    matching_queues =
+      state.queues
+      |> Map.get(routing_key, MapSet.new)
+      |> MapSet.put(queue_pid)
+
+    {:reply, :ok, %{state | queues: Map.put(state.queues, routing_key, matching_queues)}}
   end
 end
