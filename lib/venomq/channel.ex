@@ -74,6 +74,9 @@ defmodule Venomq.Channel do
       pid ->
         Logger.info("channel #{inspect(self())} | asking for consumer subscription")
         :ok = Queue.add_consumer(pid, payload.consumer_tag)
+
+        method_payload = <<60::16, 21::16>> <> encode_short_string(payload.consumer_tag)
+        :gen_tcp.send(state.socket, Frame.create_method_frame(method_payload, state.channel_id))
     end
     state
   end

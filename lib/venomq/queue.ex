@@ -24,6 +24,7 @@ defmodule Venomq.Queue do
       %{
         config: config,
         message_queue: :queue.new,
+        consumers: %{},
       }
     }
   end
@@ -37,6 +38,7 @@ defmodule Venomq.Queue do
 
   def handle_call({:add_consumer, consumer_tag}, {channel_pid, _}, state) do
     Logger.info("queue: \"#{state.config.queue_name}\" | adding consumer #{consumer_tag} -> channel: #{inspect(channel_pid)}.")
+    state = %{state | consumers: Map.put(state.consumers, consumer_tag, channel_pid)}
     {:reply, :ok, state}
   end
 end
