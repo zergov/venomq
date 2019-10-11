@@ -10,9 +10,10 @@ defmodule Venomq.Channel do
   import Venomq.Transport.Data
 
   alias Venomq.Transport.Frame
-  alias Venomq.QueueSupervisor
   alias Venomq.ExchangeDirect
   alias Venomq.ExchangeSupervisor
+  alias Venomq.Queue
+  alias Venomq.QueueSupervisor
 
   require Logger
 
@@ -65,9 +66,15 @@ defmodule Venomq.Channel do
     state
   end
 
-  defp handle_method(%{class: :basic, method: :consume, payload: payload} = method_payload, state) do
-    Logger.info("received basic consume")
-    IO.inspect(method_payload)
+  defp handle_method(%{class: :basic, method: :consume, payload: payload}, state) do
+    case QueueSupervisor.lookup(payload.queue) do
+      nil ->
+        Logger.info("cannot find queue: #{payload.queue}")
+      pid ->
+        Logger.info("channel #{inspect(self())} | asking for consumer subscription")
+        :ok = Queue.add_consumer(pid, payload.consumer_tag)
+    end
+    state
   end
 
   defp handle_method(%{class: :basic, method: :publish} = method, state), do: %{state | content_method: method}

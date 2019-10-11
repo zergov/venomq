@@ -11,6 +11,10 @@ defmodule Venomq.Queue do
     GenServer.call(pid, {:enqueue, message})
   end
 
+  def add_consumer(pid, consumer_tag) do
+    GenServer.call(pid, {:add_consumer, consumer_tag})
+  end
+
   # GenServer callbacks
 
   def init(config) do
@@ -28,6 +32,11 @@ defmodule Venomq.Queue do
     Logger.info("queue: \"#{state.config.queue_name}\" | enqueing message.")
     message_queue = :queue.in(message, message_queue)
     state = %{state | message_queue: message_queue}
+    {:reply, :ok, state}
+  end
+
+  def handle_call({:add_consumer, consumer_tag}, {channel_pid, _}, state) do
+    Logger.info("queue: \"#{state.config.queue_name}\" | adding consumer #{consumer_tag} -> channel: #{inspect(channel_pid)}.")
     {:reply, :ok, state}
   end
 end
