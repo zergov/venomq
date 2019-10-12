@@ -25,6 +25,10 @@ defmodule Venomq.Channel do
     GenServer.cast(pid, {:handle_frame, frame})
   end
 
+  def deliver(pid, consumer_tag, message, exchange_name) do
+    GenServer.call(pid, {:deliver, consumer_tag, message, exchange_name})
+  end
+
   # genserver callbacks
 
   def init(socket: socket, channel_id: channel_id) do
@@ -37,7 +41,14 @@ defmodule Venomq.Channel do
       content_header: %{},
       content_body: <<>>,
       body_size: 0,
+
+      delivery_tag: 0,
     }}
+  end
+
+  def handle_call({:deliver, consumer_tag, message, exchange_name}, _from, state) do
+    Logger.info("sending #{message}, #{exchange_name} #{consumer_tag} to client.")
+    {:reply, :ok, state}
   end
 
   def handle_cast({:handle_frame, frame}, state) do

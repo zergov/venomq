@@ -1,14 +1,16 @@
 defmodule Venomq.Queue do
   use GenServer
 
+  alias Venomq.Channel
+
   require Logger
 
   def start_link(config: config, name: name) do
     GenServer.start_link(__MODULE__, config, name: name)
   end
 
-  def enqueue(pid, message) do
-    GenServer.call(pid, {:enqueue, message})
+  def deliver(pid, message, exchange_name) do
+    GenServer.call(pid, {:deliver, message, exchange_name})
   end
 
   def add_consumer(pid, consumer_tag) do
@@ -23,22 +25,56 @@ defmodule Venomq.Queue do
     {:ok,
       %{
         config: config,
-        message_queue: :queue.new,
         consumers: %{},
+        consumers_queue: :queue.new,
       }
     }
   end
 
-  def handle_call({:enqueue, message}, _from, %{message_queue: message_queue} = state) do
-    Logger.info("queue: \"#{state.config.queue_name}\" | enqueing message.")
-    message_queue = :queue.in(message, message_queue)
-    state = %{state | message_queue: message_queue}
-    {:reply, :ok, state}
+  def handle_call({:deliver, message, exchange_name}, _from, state) do
+    Logger.info("queue: \"#{state.config.queue_name}\" | delivering message.")
+
+    case get_available_consumer(state.consumers, state.consumers_queue) do
+      {consumer_tag, channel_pid, consumers_queue} ->
+
+        # add the consumer back in the queue of consumers
+        consumers_queue = :queue.in(consumer_tag, consumers_queue)
+
+        Channel.deliver(channel_pid, consumer_tag, message, exchange_name)
+        {:reply, :ok, %{state | consumers_queue: consumers_queue}}
+
+      {:error, consumers_queue} ->
+        Logger.info("queue: \"#{state.config.queue_name}\" | no consumers available to receive message. Message dropped.")
+        #TODO: implement backing queue. This way messages are persisted if no consumers are available.
+        {:reply, :ok, state}
+    end
   end
 
   def handle_call({:add_consumer, consumer_tag}, {channel_pid, _}, state) do
     Logger.info("queue: \"#{state.config.queue_name}\" | adding consumer #{consumer_tag} -> channel: #{inspect(channel_pid)}.")
-    state = %{state | consumers: Map.put(state.consumers, consumer_tag, channel_pid)}
+
+    # add the new consumer the map and in the consumers queue.
+    # The consumers queue is used to deliver messages to different queue consumers in a
+    # round robin fashion.
+    consumers = state.consumers |> Map.put(consumer_tag, channel_pid)
+    consumers_queue = :queue.in(consumer_tag, state.consumers_queue)
+
+    state = %{state | consumers: consumers, consumers_queue: consumers_queue}
     {:reply, :ok, state}
+  end
+
+  @doc"""
+  traverse the queue of consumers and attempt to find an available consumer.
+  """
+  defp get_available_consumer(consumers, {[], []}), do: {:error, :queue.new}
+  defp get_available_consumer(consumers, consumers_queue) do
+    {{:value, consumer}, consumers_queue} = :queue.out(consumers_queue)
+
+    case Map.fetch(consumers, consumer) do
+      {:ok, channel_pid} ->
+        {consumer, channel_pid, consumers_queue}
+      :error ->
+        get_available_consumer(consumers, consumers_queue)
+    end
   end
 end

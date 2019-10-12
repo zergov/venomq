@@ -28,11 +28,11 @@ defmodule Venomq.ExchangeDirect do
     }
   end
 
-  def handle_call({:publish, routing_key, body}, _from, %{queues: queues} = state) do
+  def handle_call({:publish, routing_key, body}, _from, state) do
     Logger.info("exchange: \"#{state.exchange_name}\" | publishing #{body} with routing key: #{routing_key}")
-    queues
+    state.queues
     |> Map.get(routing_key, MapSet.new)
-    |> Enum.each(&Queue.enqueue(&1, body))
+    |> Enum.each(&Queue.deliver(&1, body, state.exchange_name))
 
     {:reply, :ok, state}
   end
