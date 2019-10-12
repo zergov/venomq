@@ -2,9 +2,16 @@
 A work in progress, zero dependency AMQP message broker.
 
 ## Introduction
-I got interested on how rabbitmq works, so I decided to roll my own AMQP broker.
+I got interested on how [rabbitmq](https://www.rabbitmq.com/) works, so I decided to roll my own AMQP broker.
 
-It's a nice learning experience as of now! I learned a bunch of new things regarding transport layer parsing and how to do connection multiplexing over a single TCP socket.
+It's been a nice learning experience! I learned a bunch of new things like
+parsing packets from the transport layer and how to do connection multiplexing over a single TCP socket.
+
+## Goal
+My goal is to follow the [rabbitmq tutorials](https://www.rabbitmq.com/getstarted.html), and implement as much feature as possible so that all tutorials can be played on the broker.
+
+I am using the python version of the tutorials, using the amqp [`pika`](https://github.com/pika/pika) client.
+You can find the tutorial scripts in the `/examples` folder.
 
 ## Starting the broker
 You will need [elixir](https://elixir-lang.org/install.html) installed on your machine.
@@ -23,10 +30,3 @@ iex(1)>
 
 At this point, the broker is running and is accepting connections from AMQP clients on
 port 5672 (the default AMQP port)
-
-## Playing with the broker
-My goal is to follow the [rabbitmq tutorials](https://www.rabbitmq.com/getstarted.html), and implement as much feature as possible
-so that the tutorials can be played on this broker.
-
-I am using the python version of the tutorials, using the amqp [pika](https://github.com/pika/pika) .
-You can find the tutorial scripts in the `/examples` folder.
