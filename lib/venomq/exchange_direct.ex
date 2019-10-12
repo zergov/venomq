@@ -32,7 +32,7 @@ defmodule Venomq.ExchangeDirect do
     Logger.info("exchange: \"#{state.exchange_name}\" | publishing #{body} with routing key: #{routing_key}")
     state.queues
     |> Map.get(routing_key, MapSet.new)
-    |> Enum.each(&Queue.deliver(&1, body, state.exchange_name))
+    |> Enum.each(&Queue.deliver(&1, body, state.exchange_name, routing_key))
 
     {:reply, :ok, state}
   end

@@ -17,7 +17,7 @@ defmodule Venomq.Transport.Frame do
     }
   end
 
-  def parse_frame(<<2, channel_id::16, size::32, payload::binary-size(size), 0xce>>) do
+  def parse_frame(<<2, channel_id::16, size::32, payload::binary-size(size), 0xce>> = frame) do
     <<class_id::16, weight::16, body_size::64, property_flag::16, remainder::binary>> = payload
     %Frame{
       type: :content_header,
@@ -44,6 +44,14 @@ defmodule Venomq.Transport.Frame do
 
   def create_method_frame(method_payload, channel_id) do
     <<1, channel_id::16, byte_size(method_payload)::32 >> <> method_payload <> << 0xce >>
+  end
+
+  def create_content_header_frame(payload, channel_id) do
+    <<2, channel_id::16, byte_size(payload)::32 >> <> payload <> << 0xce >>
+  end
+
+  def create_content_body_frame(payload, channel_id) do
+    <<3, channel_id::16, byte_size(payload)::32 >> <> payload <> << 0xce >>
   end
 
   defp class_atom(60), do: :basic

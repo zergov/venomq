@@ -9,8 +9,8 @@ defmodule Venomq.Queue do
     GenServer.start_link(__MODULE__, config, name: name)
   end
 
-  def deliver(pid, message, exchange_name) do
-    GenServer.call(pid, {:deliver, message, exchange_name})
+  def deliver(pid, message, exchange_name, routing_key) do
+    GenServer.call(pid, {:deliver, message, exchange_name, routing_key})
   end
 
   def add_consumer(pid, consumer_tag) do
@@ -31,7 +31,7 @@ defmodule Venomq.Queue do
     }
   end
 
-  def handle_call({:deliver, message, exchange_name}, _from, state) do
+  def handle_call({:deliver, message, exchange_name, routing_key}, _from, state) do
     Logger.info("queue: \"#{state.config.queue_name}\" | delivering message.")
 
     case get_available_consumer(state.consumers, state.consumers_queue) do
@@ -40,7 +40,7 @@ defmodule Venomq.Queue do
         # add the consumer back in the queue of consumers
         consumers_queue = :queue.in(consumer_tag, consumers_queue)
 
-        Channel.deliver(channel_pid, consumer_tag, message, exchange_name)
+        Channel.deliver(channel_pid, consumer_tag, message, exchange_name, routing_key)
         {:reply, :ok, %{state | consumers_queue: consumers_queue}}
 
       {:error, consumers_queue} ->
