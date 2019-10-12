@@ -56,9 +56,14 @@ defmodule Venomq.Connection do
     {:noreply, handle_frame(frame, state)}
   end
 
-  def handle_info({:tcp_closed, _socket}, _state) do
+  def handle_info({:tcp_closed, _socket}, state) do
     Logger.info("connection #{inspect(self())} | connection closed.")
+
     #TODO: kill channels of this connection
+    state.channels
+    |> Map.values
+    |> Enum.each(&Channel.destroy/1)
+
     Process.exit(self(), :normal)
   end
 

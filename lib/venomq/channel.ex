@@ -29,6 +29,10 @@ defmodule Venomq.Channel do
     GenServer.call(pid, {:deliver, consumer_tag, message, exchange_name, routing_key})
   end
 
+  def destroy(pid) do
+    GenServer.cast(pid, :destroy)
+  end
+
   # genserver callbacks
 
   def init(socket: socket, channel_id: channel_id) do
@@ -42,6 +46,7 @@ defmodule Venomq.Channel do
       content_body: <<>>,
       body_size: 0,
 
+      consuming: %{},
       delivery_tag: 1,
     }}
   end
@@ -66,6 +71,14 @@ defmodule Venomq.Channel do
 
   def handle_cast({:handle_frame, frame}, state) do
     {:noreply, do_handle_frame(frame, state)}
+  end
+
+  def handle_cast(:destroy, state) do
+    # remove all consumers of this channel
+    state.consuming
+    |> Enum.each(fn {consumer_tag, queue_pid} -> Queue.remove_consumer(queue_pid, consumer_tag) end)
+
+    Process.exit(self(), :normal)
   end
 
   # handle frames
@@ -95,14 +108,17 @@ defmodule Venomq.Channel do
     case QueueSupervisor.lookup(payload.queue) do
       nil ->
         Logger.info("cannot find queue: #{payload.queue}")
+        state
       pid ->
         Logger.info("channel #{inspect(self())} | asking for consumer subscription")
         :ok = Queue.add_consumer(pid, payload.consumer_tag)
 
         method_payload = <<60::16, 21::16>> <> encode_short_string(payload.consumer_tag)
         :gen_tcp.send(state.socket, Frame.create_method_frame(method_payload, state.channel_id))
+
+        # keep track of the relation between the consumer and the queue
+        %{state | consuming: state.consuming |> Map.put(payload.consumer_tag, pid)}
     end
-    state
   end
 
   defp handle_method(%{class: :basic, method: :publish} = method, state), do: %{state | content_method: method}

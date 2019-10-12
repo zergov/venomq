@@ -17,6 +17,10 @@ defmodule Venomq.Queue do
     GenServer.call(pid, {:add_consumer, consumer_tag})
   end
 
+  def remove_consumer(pid, consumer_tag) do
+    GenServer.cast(pid, {:remove_consumer, consumer_tag})
+  end
+
   # GenServer callbacks
 
   def init(config) do
@@ -61,6 +65,11 @@ defmodule Venomq.Queue do
 
     state = %{state | consumers: consumers, consumers_queue: consumers_queue}
     {:reply, :ok, state}
+  end
+
+  def handle_cast({:remove_consumer, consumer_tag}, state) do
+    Logger.info("queue: \"#{state.config.queue_name}\" | removing consumer: #{consumer_tag}")
+    {:noreply, %{state | consumers: Map.delete(state.consumers, consumer_tag)}}
   end
 
   @doc"""
