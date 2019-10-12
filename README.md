@@ -1,9 +1,10 @@
 # Venomq
-Zero dependency AMQP message broker
+A work in progress, zero dependency AMQP message broker.
 
 ## Introduction
-I wanted to play with elixir and also learn a bit more about how the transport layer works. I thought building an AMQP broker from scatch would
-be fun and a cool learning experience, so here it is :).
+I got interested on how rabbitmq works, so I decided to roll my own AMQP broker.
+It's a nice learning experience as of now! I learned a lot of things while coding on this
+project.
 
 ## starting the broker
 You will need [elixir](https://elixir-lang.org/install.html) installed on your machine.
