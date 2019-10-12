@@ -6,7 +6,7 @@ I got interested on how rabbitmq works, so I decided to roll my own AMQP broker.
 
 It's a nice learning experience as of now! I learned a bunch of new things regarding transport layer parsing and how to do connection multiplexing over a single TCP socket.
 
-## starting the broker
+## Starting the broker
 You will need [elixir](https://elixir-lang.org/install.html) installed on your machine.
 
 Then, just start an iex session with the mix project:
