@@ -15,11 +15,20 @@ defmodule Venomq.QueueSupervisor do
     # TODO:
     # Check existing queue config and raise an error if the queue config
     # is different from the existing queue.
+    case lookup(queue_name) do
+      nil ->
+        start_queue(config)
+      queue_id ->
+        {:ok, queue_id}
+    end
+  end
+
+  def lookup(queue_name) do
     case Registry.lookup(Registry.Queue, queue_name) do
       [{queue_id, _}] ->
-        {:ok, queue_id}
+        queue_id
       [] ->
-        start_queue(config)
+        nil
     end
   end
 

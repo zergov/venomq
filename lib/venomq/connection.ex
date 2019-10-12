@@ -43,9 +43,8 @@ defmodule Venomq.Connection do
     method_payload = method_payload <> <<major, minor>> <> server_properties
     method_payload = method_payload <> encode_long_string(mechanism)
     method_payload = method_payload <> encode_long_string(locales)
-    frame = <<1, 0, 0, byte_size(method_payload)::32 >> <> method_payload <> << 0xce >>
 
-    :gen_tcp.send(socket, frame)
+    :gen_tcp.send(socket, Frame.create_method_frame(method_payload, 0))
 
     # Changing packet setting to: line", with 0xce delimiter
     :inet.setopts(socket, [{:packet, :line}, {:line_delimiter, 0xce}])
@@ -69,6 +68,10 @@ defmodule Venomq.Connection do
   end
 
   # handle channel.open method
+  #
+  # This Method call is special because the channel_id is specified, but the
+  # channel process is not yet opened. So this method call is handled at the
+  # connection level, instead of the channel leve.
   def handle_frame(%Frame{type: :method, channel_id: channel_id, payload: %{class: :channel, method: :open}}, state) do
     {:ok, channel_pid} = ChannelSupervisor.start_child(state.socket, channel_id)
 
@@ -76,13 +79,12 @@ defmodule Venomq.Connection do
 
     # answer client with channel.open_ok
     method_payload = <<20::16, 11::16>> <> encode_long_string("#{channel_id}")
-    frame = <<1, channel_id::16, byte_size(method_payload)::32 >> <> method_payload <> << 0xce >>
 
-    :gen_tcp.send(state.socket, frame)
+    :gen_tcp.send(state.socket, Frame.create_method_frame(method_payload, channel_id))
     state
   end
 
-  # Forward a frame to a channel
+  # Forward frame to corresponding channel
   def handle_frame(%Frame{channel_id: channel_id} = frame, state) do
     case Map.fetch(state.channels, channel_id) do
       {:ok, channel_pid} ->
@@ -109,25 +111,22 @@ defmodule Venomq.Connection do
     frame_max = 0
     heartbeat = 0
     method_payload = <<class_id::16, method_id::16, channel_max::16, frame_max::32, heartbeat::16>>
-    frame = <<1, 0, 0, byte_size(method_payload)::32 >> <> method_payload <> << 0xce >>
 
-    :gen_tcp.send(state.socket, frame)
+    :gen_tcp.send(state.socket, Frame.create_method_frame(method_payload, 0))
     state
   end
 
   defp handle_method(%{class: :connection, method: :tune_ok, payload: payload}, state) do
     Logger.info("connection #{inspect(self())} | Setting socket buffer size to: #{payload.frame_max}")
     :inet.setopts(state.socket, [{:buffer, payload.frame_max}])
-
     state
   end
 
   defp handle_method(%{class: :connection, method: :open, payload: payload}, state) do
     # answer with connection.open_ok
     method_payload = <<10::16, 41::16>> <> encode_short_string(payload.virtual_host)
-    frame = <<1, 0, 0, byte_size(method_payload)::32 >> <> method_payload <> << 0xce >>
+    :gen_tcp.send(state.socket, Frame.create_method_frame(method_payload, 0))
 
-    :gen_tcp.send(state.socket, frame)
     state
   end
 end

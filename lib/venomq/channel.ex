@@ -10,9 +10,10 @@ defmodule Venomq.Channel do
   import Venomq.Transport.Data
 
   alias Venomq.Transport.Frame
-  alias Venomq.QueueSupervisor
   alias Venomq.ExchangeDirect
   alias Venomq.ExchangeSupervisor
+  alias Venomq.Queue
+  alias Venomq.QueueSupervisor
 
   require Logger
 
@@ -22,6 +23,10 @@ defmodule Venomq.Channel do
 
   def handle_frame(pid, frame) do
     GenServer.cast(pid, {:handle_frame, frame})
+  end
+
+  def deliver(pid, consumer_tag, message, exchange_name, routing_key) do
+    GenServer.call(pid, {:deliver, consumer_tag, message, exchange_name, routing_key})
   end
 
   # genserver callbacks
@@ -36,7 +41,27 @@ defmodule Venomq.Channel do
       content_header: %{},
       content_body: <<>>,
       body_size: 0,
+
+      delivery_tag: 1,
     }}
+  end
+
+  def handle_call({:deliver, consumer_tag, message, exchange_name, routing_key}, _from, state) do
+    Logger.info("sending #{message}, #{exchange_name} #{consumer_tag} to client.")
+
+    # send basic.deliver
+    method_payload = <<60::16, 60::16>> <> encode_short_string(consumer_tag)
+    method_payload = method_payload <> <<state.delivery_tag::64, 0>>
+    method_payload = method_payload <> encode_short_string(exchange_name)
+    method_payload = method_payload <> encode_short_string(routing_key)
+    :gen_tcp.send(state.socket, Frame.create_method_frame(method_payload, state.channel_id))
+
+    # send content-header and content-body containing the message
+    content_header = <<60::16, 0::16, byte_size(message)::64, 0::16>>
+    :gen_tcp.send(state.socket, Frame.create_content_header_frame(content_header, state.channel_id))
+    :gen_tcp.send(state.socket, Frame.create_content_body_frame(message, state.channel_id))
+
+    {:reply, :ok, %{state | delivery_tag: state.delivery_tag + 1}}
   end
 
   def handle_cast({:handle_frame, frame}, state) do
@@ -55,13 +80,28 @@ defmodule Venomq.Channel do
     {:ok, _pid} = QueueSupervisor.declare_queue(payload)
 
     # answer client with queue.declare_ok
-    # TODO: no-wait if it exists
+    # TODO: this should be contained inside Frame or Method module
     method_payload = <<50::16, 11::16>> <> encode_short_string(payload.queue_name)
     message_count = 0
     consumer_count = 0
     method_payload = method_payload <> << message_count::32, consumer_count::32 >>
+    # TODO: no-wait flag if it exists
 
-    :gen_tcp.send(state.socket, Frame.create_method_frame(method_payload, state))
+    :gen_tcp.send(state.socket, Frame.create_method_frame(method_payload, state.channel_id))
+    state
+  end
+
+  defp handle_method(%{class: :basic, method: :consume, payload: payload}, state) do
+    case QueueSupervisor.lookup(payload.queue) do
+      nil ->
+        Logger.info("cannot find queue: #{payload.queue}")
+      pid ->
+        Logger.info("channel #{inspect(self())} | asking for consumer subscription")
+        :ok = Queue.add_consumer(pid, payload.consumer_tag)
+
+        method_payload = <<60::16, 21::16>> <> encode_short_string(payload.consumer_tag)
+        :gen_tcp.send(state.socket, Frame.create_method_frame(method_payload, state.channel_id))
+    end
     state
   end
 
@@ -90,7 +130,6 @@ defmodule Venomq.Channel do
       pid ->
         :ok = ExchangeDirect.publish(pid, %{routing_key: routing_key, body: body})
     end
-
     state
   end
 end
