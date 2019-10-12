@@ -5,7 +5,7 @@ defmodule Venomq.Channel do
   Channels are multiplexed so that a single network connection can carry multiple channels.
   Channels are independent of each other and can perform different functions simultaneously
   """
-  use GenServer
+  use GenServer, restart: :temporary
 
   import Venomq.Transport.Data
 
@@ -52,7 +52,7 @@ defmodule Venomq.Channel do
   end
 
   def handle_call({:deliver, consumer_tag, message, exchange_name, routing_key}, _from, state) do
-    Logger.info("sending #{message}, #{exchange_name} #{consumer_tag} to client.")
+    Logger.info("delivering #{message}, #{exchange_name} #{consumer_tag} to client.")
 
     # send basic.deliver
     method_payload = <<60::16, 60::16>> <> encode_short_string(consumer_tag)
@@ -78,6 +78,7 @@ defmodule Venomq.Channel do
     state.consuming
     |> Enum.each(fn {consumer_tag, queue_pid} -> Queue.remove_consumer(queue_pid, consumer_tag) end)
 
+    Logger.info("closing channel #{inspect(self())}")
     Process.exit(self(), :normal)
   end
 
