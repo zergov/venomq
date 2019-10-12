@@ -3,8 +3,8 @@ A work in progress, zero dependency AMQP message broker.
 
 ## Introduction
 I got interested on how rabbitmq works, so I decided to roll my own AMQP broker.
-It's a nice learning experience as of now! I learned a lot of things while coding on this
-project.
+
+It's a nice learning experience as of now! I learned a bunch of new things regarding transport layer parsing and how to do connection multiplexing over a single TCP socket.
 
 ## starting the broker
 You will need [elixir](https://elixir-lang.org/install.html) installed on your machine.
