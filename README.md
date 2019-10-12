@@ -1,8 +1,8 @@
 # Venomq
-A work in progress, zero dependency AMQP message broker.
+A work in progress, zero dependency AMQP 0.9.1 message broker.
 
 ## Introduction
-I got interested on how [rabbitmq](https://www.rabbitmq.com/) works, so I decided to roll my own AMQP broker.
+I got interested on how [rabbitmq](https://www.rabbitmq.com/) works, so I decided to write my own AMQP broker.
 
 It's been a nice learning experience! I learned a bunch of new things like
 parsing packets from the transport layer and how to do connection multiplexing over a single TCP socket.
@@ -10,7 +10,7 @@ parsing packets from the transport layer and how to do connection multiplexing o
 ## Goal
 My goal is to follow the [rabbitmq tutorials](https://www.rabbitmq.com/getstarted.html), and implement as much feature as possible so that all tutorials can be played on the broker.
 
-I am using the python version of the tutorials, using the amqp [`pika`](https://github.com/pika/pika) client.
+I am using the python version of the tutorials, using the AMQP [`pika`](https://github.com/pika/pika) client.
 You can find the tutorial scripts in the `/examples` folder.
 
 ## Starting the broker
